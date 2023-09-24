@@ -1,7 +1,10 @@
 const express = require('express')
 const app = express()
+const cors = require('cors')
 
 app.use(express.json())
+app.use(cors())
+app.use(express.static('dist'))
 
 let heroes = [
     {
@@ -17,10 +20,6 @@ const generateId= () => {
         : 0
         return maxId + 1
 }
-
-app.get('/', (request, response) => {
-    response.send('<h1>hello world</h1>')
-})
 
 app.get('/info', (request, response) => {
     const date = new Date()
