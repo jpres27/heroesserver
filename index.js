@@ -1,6 +1,8 @@
+require('dotenv').config()
 const express = require('express')
 const app = express()
 const cors = require('cors')
+const Hero = require('./models/hero')
 
 app.use(express.json())
 app.use(cors())
@@ -14,31 +16,22 @@ let heroes = [
     }
 ]
 
-const generateId= () => {
-    const maxId = heroes.length > 0
-        ? Math.max(...heroes.map(n => n.id))
-        : 0
-        return maxId + 1
-}
-
 app.get('/info', (request, response) => {
     const date = new Date()
     response.send(`${heroes.length} warriors are enshrined in the Hall of Heroes. </br> ${date}`)
 })
 
 app.get('/api/heroes', (request, response) => {
-    response.json(heroes)
+    Hero.find({}).then(heroes => {
+        response.json(heroes)
+
+    })
 })
 
 app.get('/api/heroes/:id', (request, response) => {
-    const id = Number(request.params.id)
-    const hero = heroes.find(hero => hero.id === id)
-
-    if (hero) {
-    response.json(hero)
-    } else {
-        response.status(404).end()
-    }
+    Hero.findById(request.params.id).then(hero => {
+        response.json(hero)
+    })
 })
 
 app.delete('/api/heroes/:id', (request, response) => {
@@ -54,35 +47,28 @@ app.post('/api/heroes', (request, response) => {
     console.log(body.name)
     console.log(body.sword)
     
-    if (!body.name) {
+    if (body.name === undefined) {
         return response.status(400).json({
             error: 'There is no name in the request'
         })
     }
 
-
-    if (!body.sword) {
+    if (body.sword === undefined) {
         return response.status(400).json({
             error: 'There is no sword in the request'
         })
     }
 
-    if (heroes.some(e => e.name === body.name)) {
-        return response.status(400).json({
-            error: 'This hero already resides within the great hall.'
-        })
-      }
-
-    const hero = {
+    const hero = new Hero({
         name: body.name,
-        sword: body.sword,
-        id: generateId(),
-    }
+        sword: body.sword
+    })
 
-    heroes = heroes.concat(hero)
-    response.json(hero)
+    hero.save().then(savedHero => {
+        response.json(savedHero)
+    })
 })
 
-const PORT = process.env.PORT || 3001
+const PORT = process.env.PORT
 app.listen(PORT)
 console.log(`Server running on port ${PORT}`)
