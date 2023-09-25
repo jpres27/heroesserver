@@ -14,8 +14,16 @@ mongoose.connect(url).then(result => {
 })
 
 const heroSchema = new mongoose.Schema({
-    name: String,
-    sword: String
+    name: {
+        type: String,
+        minLength: 3,
+        required: true
+    },
+    sword: {
+        type: String,
+        minLength: 3,
+        required: true
+    }
 })
 
 heroSchema.set('toJSON', {
