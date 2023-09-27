@@ -1,11 +1,20 @@
 const heroesRouter = require('express').Router()
 const Hero = require('../models/hero')
+const User = require('../models/user')
+const jwt = require('jsonwebtoken')
 
-heroesRouter.get('/', (request, response) => {
-    Hero.find({}).then(heroes => {
-        response.json(heroes)
+const getTokenFrom = request => {
+    const authorization = request.get('authorization')
+    if (authorization && authorization.startsWith('Bearer ')) {
+        return authorization.replace('Bearer ', '')
+    }
+    return null
+}
 
-    })
+heroesRouter.get('/', async (request, response) => {
+    const heroes = await Hero.find({}).populate('user', { username: 1 })
+
+    response.json(heroes)
 })
 
 heroesRouter.get('/:id', (request, response, next) => {
@@ -35,18 +44,25 @@ heroesRouter.delete('/:id', (request, response) => {
     .catch(error => next(error))
 })
 
-heroesRouter.post('/', (request, response) => {
+heroesRouter.post('/', async (request, response) => {
     const body = request.body
+    const decodedToken = jwt.verify(getTokenFrom(request), process.env.SECRET)
+    if (!decodedToken.id) {
+        return response.status(401).json({ error: 'invalid token' })
+    }
+    const user = await User.findById(decodedToken.id)
 
     const hero = new Hero({
         name: body.name,
-        sword: body.sword
+        sword: body.sword,
+        user: user.id
     })
 
-    hero.save().then(savedHero => {
-        response.json(savedHero)
-    })
-    .catch(error => next(error))
+    const savedHero = await hero.save()
+    user.heroes = user.heroes.concat(savedHero._id)
+    await user.save()
+
+    response.json(savedHero)
 })
 
 module.exports = heroesRouter
