@@ -1,7 +1,6 @@
 const heroesRouter = require('express').Router()
 const Hero = require('../models/hero')
 const User = require('../models/user')
-const jwt = require('jsonwebtoken')
 
 heroesRouter.get('/', async (request, response) => {
     const heroes = await Hero.find({}).populate('user', { username: 1 })
@@ -23,31 +22,51 @@ heroesRouter.get('/:id', (request, response, next) => {
 heroesRouter.put('/:id', (request, response, next) => {
     const { name, sword } = request.body
 
-    Hero.findByIdAndUpdate(request.params.id, { name, sword }, {new: true, runValidators: true, context: 'query'}).then(updatedHero => {
-        response.json(updatedHero)
+    Hero.findById(request.params.id).then(hero => {
+        if(hero.user.toString() === request.session.user.toString()) {
+            Hero.findByIdAndUpdate(request.params.id, { name, sword }, {new: true, runValidators: true, context: 'query'}).then(updatedHero => {
+                response.json(updatedHero)
+            })
+            .catch(error => next(error))
+        } else {
+            response.status(401).end()
+        }
     })
-    .catch(error => next(error))
 })
 
-heroesRouter.delete('/:id', (request, response) => {
-    Hero.findByIdAndRemove(request.params.id).then(result => {
-        response.status(204).end()
-    })
-    .catch(error => next(error))
+heroesRouter.delete('/:id', async (request, response) => {
+    
+    const hero = await Hero.findById(request.params.id)
+        console.log('Beginning delete request comparison.')
+        console.log('hero.user: ', hero.user.toString())
+        console.log('sesh.user: ', request.session.user.toString())
+        if(hero.user.toString() === request.session.user.toString()) {
+            Hero.findByIdAndRemove(request.params.id).then(result => {
+                response.status(204).end()
+            })
+            .catch(error => next(error))
+            const user = await User.findById(request.session.user)
+            console.log(user.heroes)
+            user.heroes = user.heroes.splice(user.heroes.indexOf(request.params.id), 1)
+            await user.save()
+
+        } else {
+        response.status(401).end()
+        }
+    
 })
 
 heroesRouter.post('/', async (request, response) => {
     const body = request.body
-    const decodedToken = jwt.verify(request.token, process.env.SECRET)
-    if (!decodedToken.id) {
-        return response.status(401).json({ error: 'invalid token' })
-    }
-    const user = await User.findById(decodedToken.id)
+    console.log('body: ', body)
+    console.log('sesh.user: ', request.session.user)
+    console.log('sesh.user toString(): ', request.session.user.toString())
 
+    const user = await User.findById(request.session.user)
     const hero = new Hero({
         name: body.name,
         sword: body.sword,
-        user: user.id
+        user: request.session.user
     })
 
     const savedHero = await hero.save()
