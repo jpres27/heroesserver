@@ -37,20 +37,16 @@ heroesRouter.put('/:id', (request, response, next) => {
 heroesRouter.delete('/:id', async (request, response) => {
     
     const hero = await Hero.findById(request.params.id)
-        console.log('Beginning delete request comparison.')
-        console.log('hero.user: ', hero.user.toString())
-        console.log('sesh.user: ', request.session.user.toString())
-        if(hero.user.toString() === request.session.user.toString()) {
-            Hero.findByIdAndRemove(request.params.id).then(result => {
-                response.status(204).end()
-            })
-            .catch(error => next(error))
-            const user = await User.findById(request.session.user)
-            console.log(user.heroes)
-            user.heroes = user.heroes.splice(user.heroes.indexOf(request.params.id), 1)
-            await user.save()
-
-        } else {
+    if(hero.user.toString() === request.session.user.toString()) {
+        Hero.findByIdAndRemove(request.params.id).then(result => {
+            response.status(204).end()
+        })
+        .catch(error => next(error))
+        const user = await User.findById(request.session.user)
+        console.log(user.heroes)
+        user.heroes = user.heroes.splice(user.heroes.indexOf(request.params.id), 1)
+        await user.save()
+    } else {
         response.status(401).end()
         }
     
@@ -58,10 +54,6 @@ heroesRouter.delete('/:id', async (request, response) => {
 
 heroesRouter.post('/', async (request, response) => {
     const body = request.body
-    console.log('body: ', body)
-    console.log('sesh.user: ', request.session.user)
-    console.log('sesh.user toString(): ', request.session.user.toString())
-
     const user = await User.findById(request.session.user)
     const hero = new Hero({
         name: body.name,
